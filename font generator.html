@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>صانع الخطوط</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/opentype.js/1.3.4/opentype.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paper.js/0.12.17/paper-full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 3em;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .input-section {
+            display: grid;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #444;
+            font-size: 1.1em;
+        }
+
+        .form-control {
+            padding: 15px 20px;
+            border: 2px solid #e1e8ed;
+            border-radius: 12px;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .char-count-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .char-count-input {
+            max-width: 150px;
+        }
+
+        .info-box {
+            background: rgba(102, 126, 234, 0.1);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #444;
+        }
+
+        .info-box h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .character-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .character-slot {
+            border: 3px dashed #ccc;
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.7);
+            transition: all 0.3s ease;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .character-slot:hover {
+            border-color: #667eea;
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.2);
+        }
+
+        .character-slot.drag-over {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+            transform: scale(1.02);
+        }
+
+        .character-slot.has-image {
+            border-color: #4CAF50;
+            border-style: solid;
+            background: rgba(76, 175, 80, 0.1);
+        }
+
+        .char-label {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 1.2em;
+        }
+
+        .char-preview {
+            max-width: 100%;
+            max-height: 120px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .upload-text {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+
+        .remove-btn {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: #ff4757;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-size: 12px;
+            display: none;
+        }
+
+        .character-slot.has-image .remove-btn {
+            display: block;
+        }
+
+        .generate-section {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 40px;
+            border-top: 2px solid #e1e8ed;
+        }
+
+        .generate-btn {
+            padding: 18px 40px;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            border-radius: 16px;
+            font-size: 1.2em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .generate-btn:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(76, 175, 80, 0.4);
+        }
+
+        .generate-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .progress {
+            display: none;
+            margin-top: 20px;
+            background: #e1e8ed;
+            border-radius: 10px;
+            overflow: hidden;
+            height: 8px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 12px;
+            font-weight: 600;
+            display: none;
+        }
+
+        .status.success {
+            background: rgba(76, 175, 80, 0.1);
+            color: #4CAF50;
+            border: 2px solid rgba(76, 175, 80, 0.3);
+        }
+
+        .status.error {
+            background: rgba(255, 71, 87, 0.1);
+            color: #ff4757;
+            border: 2px solid rgba(255, 71, 87, 0.3);
+        }
+
+        .test-section {
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 16px;
+            padding: 20px;
+            margin-top: 30px;
+            display: none;
+        }
+
+        .test-input {
+            width: 100%;
+            padding: 15px;
+            font-size: 2em;
+            border: 2px solid #e1e8ed;
+            border-radius: 12px;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .character-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 15px;
+            }
+
+            .char-count-section {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .char-count-input {
+                max-width: none;
+            }
+        }
+
+        .hidden-input {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎨 صانع الخطوط SVG</h1>
+            <p>حول ملفات SVG إلى خط حقيقي قابل للاستخدام</p>
+        </div>
+
+        <div class="info-box">
+            <h3>📋 كيفية الاستخدام:</h3>
+            <p>• اختر عدد المحارف (1-9)<br>
+            • ارفع ملفات SVG للمحارف المطلوبة<br>
+            • سيتم دمج ملفات SVG داخل الخط مباشرة<br>
+            • مثال: رفع SVG للمحرف "1" سيعرض شكلك عند كتابة الرقم 1<br>
+            • يدعم جميع أشكال SVG المعقدة والألوان</p>
+        </div>
+
+        <div class="input-section">
+            <div class="form-group">
+                <label for="fontName">اسم الخط</label>
+                <input type="text" id="fontName" class="form-control" placeholder="أدخل اسم الخط المخصص" value="custome font">
+            </div>
+
+            <div class="form-group">
+                <label>عدد المحارف (1-9)</label>
+                <div class="char-count-section">
+                    <input type="number" id="charCount" class="form-control char-count-input" min="1" max="9" value="5" placeholder="عدد المحارف">
+                </div>
+            </div>
+        </div>
+
+        <div id="characterGrid" class="character-grid"></div>
+
+        <div class="generate-section">
+            <button id="generateBtn" class="generate-btn" onclick="generateFont()" disabled>
+                ✨ توليد الخط
+            </button>
+            <div id="progress" class="progress">
+                <div id="progressBar" class="progress-bar"></div>
+            </div>
+            <div id="status" class="status"></div>
+        </div>
+
+        <div id="testSection" class="test-section">
+            <h3>🧪 اختبر الخط المولد:</h3>
+            <p>اكتب الأرقام لترى النتيجة:</p>
+            <input type="text" id="testInput" class="test-input" placeholder="اكتب 1234567890 لاختبار الخط">
+        </div>
+    </div>
+
+    <input type="file" id="hiddenFileInput" class="hidden-input" accept=".svg" multiple>
+
+    <script>
+        let characterData = [];
+        let currentSlotIndex = -1;
+        let generatedFont = null;
+
+        function generateCharacterSlots() {
+            const count = parseInt(document.getElementById('charCount').value) || 1;
+            const grid = document.getElementById('characterGrid');
+            
+            // Preserve existing character data when possible
+            const oldCharacterData = [...characterData];
+            characterData = [];
+            
+            // Clear grid
+            grid.innerHTML = '';
+            
+            for (let i = 0; i < count; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'character-slot';
+                
+                // Use numbers 1-9 as characters
+                const charNumber = (i + 1).toString();
+                const unicodeValue = 48 + (i + 1); // Unicode for numbers 1-9
+                
+                // Check if we have existing data for this index
+                const existingData = oldCharacterData[i];
+                const hasImage = existingData && existingData.svgData;
+                
+                if (hasImage) {
+                    slot.classList.add('has-image');
+                    slot.innerHTML = `
+                        <div class="char-label">${charNumber}</div>
+                        <button class="remove-btn" onclick="removeImage(${i})">×</button>
+                        <div class="char-preview" style="width: 80px; height: 80px;">${existingData.svgData}</div>
+                        <p style="font-size: 0.8em; color: #666; margin-top: 5px;">سيحل محل الرقم ${charNumber}</p>
+                    `;
+                } else {
+                    slot.innerHTML = `
+                        <div class="char-label">${charNumber}</div>
+                        <button class="remove-btn" onclick="removeImage(${i})">×</button>
+                        <div class="upload-text">
+                            <p>ارفع ملف SVG</p>
+                            <p>سيحل محل الرقم <strong>${charNumber}</strong></p>
+                            <p style="font-size: 0.8em; color: #999; margin-top: 5px;">SVG فقط</p>
+                        </div>
+                    `;
+                    
+                    // Add event listeners for drag and drop only for empty slots
+                    slot.addEventListener('dragover', handleDragOver);
+                    slot.addEventListener('dragleave', handleDragLeave);
+                    slot.addEventListener('drop', (e) => handleDrop(e, i));
+                    slot.addEventListener('click', () => selectFile(i));
+                }
+                
+                grid.appendChild(slot);
+                
+                // Initialize or preserve character data
+                characterData.push({
+                    char: charNumber,
+                    svgData: existingData ? existingData.svgData : null,
+                    unicode: unicodeValue,
+                    pathData: existingData ? existingData.pathData : null
+                });
+            }
+            
+            updateGenerateButton();
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        function handleDrop(e, index) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileUpload(files[0], index);
+            }
+        }
+
+        function selectFile(index) {
+            currentSlotIndex = index;
+            document.getElementById('hiddenFileInput').click();
+        }
+
+        document.getElementById('hiddenFileInput').addEventListener('change', function(e) {
+            if (e.target.files.length > 0 && currentSlotIndex !== -1) {
+                handleFileUpload(e.target.files[0], currentSlotIndex);
+            }
+        });
+
+        function handleFileUpload(file, index) {
+            if (!file.type.includes('svg')) {
+                showStatus('يرجى اختيار ملف SVG فقط', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const svgContent = e.target.result;
+                const slot = document.querySelectorAll('.character-slot')[index];
+                slot.classList.add('has-image');
+                
+                const charNumber = (index + 1).toString();
+                slot.innerHTML = `
+                    <div class="char-label">${charNumber}</div>
+                    <button class="remove-btn" onclick="removeImage(${index})">×</button>
+                    <div class="char-preview" style="width: 80px; height: 80px;">${svgContent}</div>
+                    <p style="font-size: 0.8em; color: #666; margin-top: 5px;">سيحل محل الرقم ${charNumber}</p>
+                `;
+                
+                // Extract SVG paths for font generation
+                const svgData = extractSVGPaths(svgContent);
+                
+                characterData[index].svgData = svgContent;
+                characterData[index].pathData = svgData;
+                updateGenerateButton();
+            };
+            reader.readAsText(file);
+        }
+
+        function extractSVGPaths(svgContent) {
+            // Create a temporary DOM element to parse SVG
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(svgContent, 'image/svg+xml');
+            const svg = doc.querySelector('svg');
+            
+            // Get SVG dimensions
+            let viewBox = svg.getAttribute('viewBox');
+            let width = parseFloat(svg.getAttribute('width')) || 100;
+            let height = parseFloat(svg.getAttribute('height')) || 100;
+            
+            if (viewBox) {
+                const vb = viewBox.split(/\s+|,/);
+                width = parseFloat(vb[2]) || width;
+                height = parseFloat(vb[3]) || height;
+            }
+            
+            const paths = [];
+            
+            // Extract all path elements
+            const pathElements = doc.querySelectorAll('path');
+            pathElements.forEach(path => {
+                const d = path.getAttribute('d');
+                if (d) {
+                    paths.push(d);
+                }
+            });
+            
+            // Extract other shape elements and convert to paths
+            const circles = doc.querySelectorAll('circle');
+            circles.forEach(circle => {
+                const cx = parseFloat(circle.getAttribute('cx')) || 0;
+                const cy = parseFloat(circle.getAttribute('cy')) || 0;
+                const r = parseFloat(circle.getAttribute('r')) || 0;
+                
+                if (r > 0) {
+                    // Convert circle to path
+                    const pathData = `M ${cx - r} ${cy} A ${r} ${r} 0 1 0 ${cx + r} ${cy} A ${r} ${r} 0 1 0 ${cx - r} ${cy} Z`;
+                    paths.push(pathData);
+                }
+            });
+            
+            // Extract rect elements
+            const rects = doc.querySelectorAll('rect');
+            rects.forEach(rect => {
+                const x = parseFloat(rect.getAttribute('x')) || 0;
+                const y = parseFloat(rect.getAttribute('y')) || 0;
+                const w = parseFloat(rect.getAttribute('width')) || 0;
+                const h = parseFloat(rect.getAttribute('height')) || 0;
+                
+                if (w > 0 && h > 0) {
+                    // Convert rect to path
+                    const pathData = `M ${x} ${y} L ${x + w} ${y} L ${x + w} ${y + h} L ${x} ${y + h} Z`;
+                    paths.push(pathData);
+                }
+            });
+            
+            // Extract ellipse elements
+            const ellipses = doc.querySelectorAll('ellipse');
+            ellipses.forEach(ellipse => {
+                const cx = parseFloat(ellipse.getAttribute('cx')) || 0;
+                const cy = parseFloat(ellipse.getAttribute('cy')) || 0;
+                const rx = parseFloat(ellipse.getAttribute('rx')) || 0;
+                const ry = parseFloat(ellipse.getAttribute('ry')) || 0;
+                
+                if (rx > 0 && ry > 0) {
+                    // Convert ellipse to path
+                    const pathData = `M ${cx - rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx + rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx - rx} ${cy} Z`;
+                    paths.push(pathData);
+                }
+            });
+            
+            return {
+                paths: paths,
+                width: width,
+                height: height,
+                viewBox: { x: 0, y: 0, width: width, height: height }
+            };
+        }
+
+        function removeImage(index) {
+            const slot = document.querySelectorAll('.character-slot')[index];
+            slot.classList.remove('has-image');
+            
+            const charNumber = (index + 1).toString();
+            slot.innerHTML = `
+                <div class="char-label">${charNumber}</div>
+                <button class="remove-btn" onclick="removeImage(${index})">×</button>
+                <div class="upload-text">
+                    <p>ارفع ملف SVG</p>
+                    <p>سيحل محل الرقم <strong>${charNumber}</strong></p>
+                    <p style="font-size: 0.8em; color: #999; margin-top: 5px;">SVG فقط</p>
+                </div>
+            `;
+            
+            // Re-add event listeners
+            slot.addEventListener('dragover', handleDragOver);
+            slot.addEventListener('dragleave', handleDragLeave);
+            slot.addEventListener('drop', (e) => handleDrop(e, index));
+            slot.addEventListener('click', () => selectFile(index));
+            
+            characterData[index].svgData = null;
+            characterData[index].pathData = null;
+            updateGenerateButton();
+        }
+
+        function updateGenerateButton() {
+            const hasImages = characterData.some(char => char.svgData !== null);
+            document.getElementById('generateBtn').disabled = !hasImages;
+        }
+
+		function createSVGGlyph(svgContent, unicode, charName) {
+			// إعداد مشروع Paper.js
+			paper.setup(new paper.Size(1000, 1000));
+		
+			// استيراد SVG إلى Paper.js
+			const svgItem = paper.project.importSVG(svgContent, { expandShapes: true });
+		
+			// قياس أبعاد الرسم الأصلي
+			const bounds = svgItem.bounds;
+			const scaleFactor = Math.min(900 / bounds.width, 900 / bounds.height); // هامش 50 من كل جهة
+		
+			// نقل المركز إلى نقطة (500, 500) بعد التحجيم
+			svgItem.scale(scaleFactor);
+			svgItem.position = new paper.Point(500, 500);
+		
+			// دمج المسارات
+			const combinedPath = new opentype.Path();
+		
+			function addPaperPathToOpenTypePath(item) {
+				if (item.className === 'Path' || item.className === 'CompoundPath') {
+					if (item.segments && item.segments.length > 0) {
+						const segments = item.segments;
+		
+						// تحريك إلى أول نقطة
+						combinedPath.moveTo(segments[0].point.x, 1000 - segments[0].point.y);
+		
+						for (let i = 0; i < segments.length; i++) {
+							const seg1 = segments[i];
+							const seg2 = segments[(i + 1) % segments.length]; // المقطع التالي (مع الإغلاق)
+		
+							if (seg1.handleOut.length > 0 || seg2.handleIn.length > 0) {
+								// منحنى Bézier cubic
+								combinedPath.curveTo(
+									seg1.handleOut.x + seg1.point.x, 1000 - (seg1.handleOut.y + seg1.point.y),
+									seg2.handleIn.x + seg2.point.x, 1000 - (seg2.handleIn.y + seg2.point.y),
+									seg2.point.x, 1000 - seg2.point.y
+								);
+							} else {
+								// خط مستقيم
+								combinedPath.lineTo(seg2.point.x, 1000 - seg2.point.y);
+							}
+						}
+		
+						combinedPath.close();
+					}
+				}
+		
+				// الدخول في العناصر الفرعية
+				if (item.children && item.children.length > 0) {
+					item.children.forEach(child => addPaperPathToOpenTypePath(child));
+				}
+			}
+		
+			addPaperPathToOpenTypePath(svgItem);
+		
+			// إنشاء الـGlyph
+			return new opentype.Glyph({
+				name: charName,
+				unicode: unicode,
+				advanceWidth: 1000,
+				path: combinedPath
+			});
+		}
+
+
+
+
+        async function generateFont() {
+            const fontName = document.getElementById('fontName').value || 'CustomFont';
+            const progress = document.getElementById('progress');
+            const progressBar = document.getElementById('progressBar');
+            const status = document.getElementById('status');
+            
+            progress.style.display = 'block';
+            status.style.display = 'none';
+            
+            try {
+                // Create glyphs array starting with .notdef
+                const glyphs = [
+                    new opentype.Glyph({
+                        name: '.notdef',
+                        unicode: 0,
+                        advanceWidth: 500,
+                        path: new opentype.Path()
+                    })
+                ];
+
+                // Add characters with SVG data
+                const charactersWithSVG = characterData.filter(char => char.svgData !== null);
+                
+                for (let i = 0; i < charactersWithSVG.length; i++) {
+                    const char = charactersWithSVG[i];
+                    progressBar.style.width = ((i + 1) / charactersWithSVG.length * 80) + '%';
+                    
+                    // Create glyph with embedded SVG
+                    const glyph = createSVGGlyph(char.svgData, char.unicode, `char${char.char}`);
+                    glyphs.push(glyph);
+                    
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+
+                progressBar.style.width = '90%';
+
+                // Create font with embedded SVG metadata
+                const font = new opentype.Font({
+                    familyName: fontName,
+                    styleName: 'Regular',
+                    unitsPerEm: 1000,
+                    ascender: 800,
+                    descender: -200,
+                    glyphs: glyphs,
+                    // Add custom metadata for SVG fonts
+                    metadata: {
+                        type: 'SVG',
+                        version: '1.0',
+                        svgGlyphs: charactersWithSVG.reduce((acc, char) => {
+                            acc[char.unicode] = char.svgData;
+                            return acc;
+                        }, {})
+                    }
+                });
+
+                progressBar.style.width = '100%';
+
+                // Generate font buffer
+                const fontBuffer = font.toArrayBuffer();
+                
+                // Create download link
+                const blob = new Blob([fontBuffer], { type: 'font/ttf' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${fontName.replace(/\s+/g, '_')}.ttf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                // Store generated font for testing
+                generatedFont = font;
+                
+                // Show test section with custom SVG rendering
+                document.getElementById('testSection').style.display = 'block';
+                setupSVGFontTest(charactersWithSVG, fontName);
+                
+                showStatus('تم إنشاء الخط بنجاح! تم تنزيل ملف الخط 🎉', 'success');
+                
+            } catch (error) {
+                console.error('Font generation error:', error);
+                showStatus('حدث خطأ أثناء إنشاء الخط: ' + error.message, 'error');
+            } finally {
+                progress.style.display = 'none';
+                progressBar.style.width = '0%';
+            }
+        }
+
+        function setupSVGFontTest(charactersWithSVG, fontName) {
+            const testInput = document.getElementById('testInput');
+            const testSection = document.getElementById('testSection');
+            
+            // Create a mapping of characters to their SVG data
+            const svgMap = {};
+            charactersWithSVG.forEach(char => {
+                svgMap[char.char] = char.svgData;
+            });
+            
+            // Create a custom display area for SVG rendering
+            const svgDisplay = document.createElement('div');
+            svgDisplay.id = 'svgDisplay';
+            svgDisplay.style.cssText = `
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: center;
+                gap: 10px;
+                padding: 20px;
+                background: rgba(255, 255, 255, 0.9);
+                border-radius: 12px;
+                margin-top: 15px;
+                min-height: 100px;
+                border: 2px dashed #ccc;
+            `;
+            
+            testSection.appendChild(svgDisplay);
+            
+            // Update placeholder text
+            testInput.placeholder = 'اكتب الأرقام ' + charactersWithSVG.map(c => c.char).join('') + ' لاختبار الخط';
+            
+            // Function to render SVG characters
+            function renderSVGText(text) {
+                svgDisplay.innerHTML = '';
+                
+                if (!text) {
+                    svgDisplay.innerHTML = '<p style="color: #666;">اكتب شيئاً لرؤية النتيجة...</p>';
+                    return;
+                }
+                
+                for (let i = 0; i < text.length; i++) {
+                    const char = text[i];
+                    
+                    if (svgMap[char]) {
+                        // Render SVG character
+                        const svgContainer = document.createElement('div');
+                        svgContainer.style.cssText = `
+                            width: 60px;
+                            height: 60px;
+                            display: inline-flex;
+                            align-items: center;
+                            justify-content: center;
+                            background: rgba(102, 126, 234, 0.1);
+                            border-radius: 8px;
+                            margin: 2px;
+                            padding: 5px;
+                        `;
+                        
+                        // Clean and resize SVG
+                        let svgContent = svgMap[char];
+                        svgContent = svgContent.replace(/<svg[^>]*>/, '<svg width="50" height="50" viewBox="0 0 100 100" style="max-width: 100%; max-height: 100%;">');
+                        
+                        svgContainer.innerHTML = svgContent;
+                        svgDisplay.appendChild(svgContainer);
+                    } else {
+                        // Render regular character
+                        const textContainer = document.createElement('div');
+                        textContainer.style.cssText = `
+                            width: 60px;
+                            height: 60px;
+                            display: inline-flex;
+                            align-items: center;
+                            justify-content: center;
+                            background: rgba(200, 200, 200, 0.3);
+                            border-radius: 8px;
+                            margin: 2px;
+                            font-size: 24px;
+                            font-weight: bold;
+                            color: #666;
+                        `;
+                        textContainer.textContent = char;
+                        svgDisplay.appendChild(textContainer);
+                    }
+                }
+            }
+            
+            // Add real-time input handling
+            testInput.addEventListener('input', function() {
+                renderSVGText(this.value);
+            });
+            
+            // Initial render
+            renderSVGText('');
+            
+            // Also create a traditional font test
+            try {
+                const fontBuffer = generatedFont.toArrayBuffer();
+                const blob = new Blob([fontBuffer], { type: 'font/ttf' });
+                const fontUrl = URL.createObjectURL(blob);
+                
+                const style = document.createElement('style');
+                style.textContent = `
+                    @font-face {
+                        font-family: '${fontName}';
+                        src: url('${fontUrl}') format('truetype');
+                    }
+                    .traditional-font-test {
+                        font-family: '${fontName}', monospace;
+                        font-size: 2em;
+                        text-align: center;
+                        padding: 15px;
+                        background: rgba(255, 255, 255, 0.7);
+                        border-radius: 8px;
+                        margin-top: 10px;
+                        border: 1px solid #ddd;
+                    }
+                `;
+                document.head.appendChild(style);
+                
+                const traditionalTest = document.createElement('div');
+                traditionalTest.innerHTML = `
+                    <h4>اختبار الخط التقليدي:</h4>
+                    <div class="traditional-font-test" id="traditionalFontDisplay">
+                        ${charactersWithSVG.map(c => c.char).join('')}
+                    </div>
+                `;
+                testSection.appendChild(traditionalTest);
+                
+                testInput.addEventListener('input', function() {
+                    document.getElementById('traditionalFontDisplay').textContent = this.value || charactersWithSVG.map(c => c.char).join('');
+                });
+                
+            } catch (error) {
+                console.log('Traditional font test setup failed:', error);
+            }
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+            
+            if (type === 'success') {
+                setTimeout(() => {
+                    status.style.display = 'none';
+                }, 8000);
+            }
+        }
+
+        // Initialize with default character slots and add real-time update
+        generateCharacterSlots();
+
+        // Add real-time update when character count changes
+        document.getElementById('charCount').addEventListener('input', function() {
+            const count = parseInt(this.value);
+            if (count && count > 0 && count <= 9) {
+                generateCharacterSlots();
+            }
+        });
+    </script>
+</body>
+</html>
+                        
